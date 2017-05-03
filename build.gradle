@@ -1,0 +1,74 @@
+group 'org.webscene'
+version '0.1-SNAPSHOT'
+
+boolean deleteDirectory(File directory) {
+    //noinspection GroovyUnusedAssignment
+    File[] files = null
+
+    if (directory.exists()) {
+        files = directory.listFiles()
+        if (files != null) {
+            for (int i = 0; i < files.length; i++) {
+                if (files[i].isDirectory()) {
+                    deleteDirectory(files[i])
+                } else {
+                    files[i].delete()
+                }
+            }
+        }
+    }
+    return directory.delete()
+}
+
+buildscript {
+    ext {
+        KOTLIN_VER = '1.1.2-2'
+        WEBSCENE_CLIENT_VER = '0.1-SNAPSHOT'
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$KOTLIN_VER"
+    }
+}
+
+apply plugin: 'kotlin2js'
+
+def programName = 'notifier'
+
+repositories {
+    mavenCentral()
+    maven {
+        url uri('libs')
+    }
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-js:$KOTLIN_VER"
+    compile "org.webscene:webscene-client:$WEBSCENE_CLIENT_VER"
+}
+
+compileKotlin2Js {
+    kotlinOptions.outputFile = "${projectDir}/web/js/${programName}.js"
+}
+
+build.doLast {
+    def oldDir = new File("${projectDir.absolutePath}/web/js")
+
+    deleteDirectory(oldDir)
+    configurations.compile.each { File file ->
+        copy {
+            includeEmptyDirs = false
+
+            from zipTree(file.absolutePath)
+            into "${projectDir}/web/js"
+            include { fileTreeElement ->
+                def path = fileTreeElement.path
+                path.endsWith(".js") && (path.startsWith("META-INF/resources/") || !path.startsWith("META-INF/"))
+            }
+        }
+    }
+}
